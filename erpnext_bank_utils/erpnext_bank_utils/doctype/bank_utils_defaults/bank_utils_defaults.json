@@ -1,0 +1,57 @@
+{
+ "creation": "2021-05-06 16:07:04.558363",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "company",
+  "default_customer",
+  "column_break_3",
+  "default_supplier",
+  "intermediate_account"
+ ],
+ "fields": [
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "default_customer",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Default Customer",
+   "options": "Customer"
+  },
+  {
+   "fieldname": "default_supplier",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Default Supplier",
+   "options": "Supplier"
+  },
+  {
+   "fieldname": "intermediate_account",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Intermediate Account",
+   "options": "Account"
+  },
+  {
+   "fieldname": "column_break_3",
+   "fieldtype": "Column Break"
+  }
+ ],
+ "istable": 1,
+ "modified": "2021-05-06 16:09:57.356286",
+ "modified_by": "Administrator",
+ "module": "ERPNext Bank Utils",
+ "name": "Bank Utils Defaults",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC"
+}
