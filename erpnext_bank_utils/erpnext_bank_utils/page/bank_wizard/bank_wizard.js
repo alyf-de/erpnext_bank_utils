@@ -86,8 +86,7 @@ frappe.bank_wizard = {
         frappe.call({
             method: 'erpnext_bank_utils.erpnext_bank_utils.page.bank_wizard.bank_wizard.read_camt053',
             args: {
-                content: content,
-                account: account
+                content: content
             },
             callback: function (r) {
                 if (r.message) {

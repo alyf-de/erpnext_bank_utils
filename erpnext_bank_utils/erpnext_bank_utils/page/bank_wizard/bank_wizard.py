@@ -1,10 +1,6 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2017-2020, libracore and contributors
 # License: AGPL v3. See LICENCE
-
-from __future__ import unicode_literals
-
-import six
 import ast
 import hashlib
 from bs4 import BeautifulSoup
@@ -128,94 +124,73 @@ def get_bank_accounts():
 
 
 @frappe.whitelist()
-def read_camt053(content, account):
+def read_camt053(content):
     soup = BeautifulSoup(content, 'lxml')
-
-    try:
-        iban = soup.document.bktocstmrstmt.stmt.acct.id.iban.get_text()
-    except:
-        # fallback (Credit Suisse will provide bank account number instead of IBAN)
-        iban = "n/a"
-        try:
-            acct_no = soup.document.bktocstmrstmt.stmt.acct.id.othr.id.get_text()
-        except:
-            # node not found, probably wrong format
-            iban = "n/a"
-            frappe.log_error("Unable to read structure. Please make sure that you have selected the correct format.", "BankWizard read_camt053")
-
     entries = soup.find_all('ntry')
-    transactions = read_camt_transactions(entries, account)
 
-    return transactions
+    return read_camt_transactions(entries)
 
 
-def read_camt_transactions(transaction_entries, account):
+def read_camt_transactions(transaction_entries):
     txns = []
     for entry in transaction_entries:
-        if six.PY2:
-            entry_soup = BeautifulSoup(unicode(entry), 'lxml')
-        else:
-            entry_soup = BeautifulSoup(str(entry), 'lxml')
-        date = entry_soup.bookgdt.dt.get_text()
-        transactions = entry_soup.find_all('txdtls')
+        date = entry.bookgdt.dt.get_text()
+        transactions = entry.find_all('txdtls')
         # fetch entry amount as fallback
-        entry_amount = float(entry_soup.amt.get_text())
-        entry_currency = entry_soup.amt['ccy']
+        entry_amount = float(entry.amt.get_text())
+        entry_currency = entry.amt['ccy']
         # fetch global account service reference
         try:
-            global_account_service_reference = entry_soup.acctsvcrref.get_text()
+            global_account_service_reference = entry.acctsvcrref.get_text()
         except:
             global_account_service_reference = ""
         transaction_count = 0
         if transactions and len(transactions) > 0:
             for transaction in transactions:
                 transaction_count += 1
-                if six.PY2:
-                    transaction_soup = BeautifulSoup(unicode(transaction), 'lxml')
-                else:
-                    transaction_soup = BeautifulSoup(str(transaction), 'lxml')
                 # --- find transaction type: paid or received: (DBIT: paid, CRDT: received)
                 try:
-                    credit_debit = transaction_soup.cdtdbtind.get_text()
+                    credit_debit = transaction.cdtdbtind.get_text()
                 except:
                     # fallback to entry indicator
-                    credit_debit = entry_soup.cdtdbtind.get_text()
+                    credit_debit = entry.cdtdbtind.get_text()
 
                 # --- find unique reference
                 try:
-                    # try to use the account service reference
-                    unique_reference = transaction_soup.txdtls.refs.acctsvcrref.get_text()
+                    # try to use the account service reference 
+                    # unique_reference = transaction.refs.acctsvcrref.get_text()
+                    unique_reference = transaction.refs.endtoendid.get_text()
                 except:
                     # fallback: use tx id
                     try:
-                        unique_reference = transaction_soup.txid.get_text()
+                        unique_reference = transaction.txid.get_text()
                     except:
                         # fallback to pmtinfid
                         try:
-                            unique_reference = transaction_soup.pmtinfid.get_text()
+                            unique_reference = transaction.pmtinfid.get_text()
                         except:
                             # fallback to group account service reference plus transaction_count
                             if global_account_service_reference != "":
                                 unique_reference = "{0}-{1}".format(global_account_service_reference, transaction_count)
                             else:
                                 # fallback to ustrd (do not use)
-                                # unique_reference = transaction_soup.ustrd.get_text()
+                                # unique_reference = transaction.ustrd.get_text()
                                 # fallback to hash
-                                amount = transaction_soup.txdtls.amt.get_text()
-                                party = transaction_soup.nm.get_text()
+                                amount = transaction.amt.get_text()
+                                party = transaction.nm.get_text()
                                 code = "{0}:{1}:{2}".format(date, amount, party)
                                 frappe.log_error("Code: {0}".format(code))
                                 unique_reference = hashlib.md5(code.encode("utf-8")).hexdigest()
                 # --- find amount and currency
                 try:
                     # try to find as <TxAmt>
-                    amount = float(transaction_soup.txdtls.txamt.amt.get_text())
-                    currency = transaction_soup.txdtls.txamt.amt['ccy']
+                    amount = float(transaction.txamt.amt.get_text())
+                    currency = transaction.txamt.amt['ccy']
                 except:
                     try:
                         # fallback to pure <AMT>
-                        amount = float(transaction_soup.txdtls.amt.get_text())
-                        currency = transaction_soup.txdtls.amt['ccy']
+                        amount = float(transaction.amt.get_text())
+                        currency = transaction.amt['ccy']
                     except:
                         # fallback to amount from entry level
                         amount = entry_amount
@@ -224,16 +199,16 @@ def read_camt_transactions(transaction_entries, account):
                     # --- find party IBAN
                     if credit_debit == "DBIT":
                         # use RltdPties:Cdtr
-                        party_soup = BeautifulSoup(str(transaction_soup.txdtls.rltdpties.cdtr), features="lxml") 
+                        party_soup = transaction.rltdpties.cdtr
                         try:
-                            party_iban = transaction_soup.cdtracct.id.iban.get_text()
+                            party_iban = transaction.cdtracct.id.iban.get_text()
                         except:
                             party_iban = ""
                     else:
                         # CRDT: use RltdPties:Dbtr
-                        party_soup = BeautifulSoup(str(transaction_soup.txdtls.rltdpties.dbtr), features="lxml")
+                        party_soup = transaction.rltdpties.dbtr
                         try:
-                            party_iban = transaction_soup.dbtracct.id.iban.get_text()
+                            party_iban = transaction.dbtracct.id.iban.get_text()
                         except:
                             party_iban = ""
                     try:
@@ -261,14 +236,14 @@ def read_camt_transactions(transaction_entries, account):
                             address_line2 = "{0} {1}".format(plz, town)
                         else:
                             # parse by address lines
-                            try:
-                                address_lines = party_soup.find_all("adrline")
+                            address_lines = party_soup.find_all("adrline")
+                            if len(address_lines) == 2:
                                 address_line1 = address_lines[0].get_text()
                                 address_line2 = address_lines[1].get_text()
-                            except:
+                            else:
                                 # in case no address is provided
                                 address_line1 = ""
-                                address_line2 = ""                            
+                                address_line2 = ""                      
                     except:
                         # party is not defined (e.g. DBIT from Bank)
                         try:
@@ -297,26 +272,22 @@ def read_camt_transactions(transaction_entries, account):
                     party_name = ""
                     party_address = ""
                     party_iban = ""
-                try:
-                    charges = float(transaction_soup.chrgs.ttlchrgsandtaxamt[text])
-                except:
-                    charges = 0.0
 
                 try:
                     # try to find ESR reference
-                    transaction_reference = transaction_soup.rmtinf.strd.cdtrrefinf.ref.get_text()
+                    transaction_reference = transaction.rmtinf.strd.cdtrrefinf.ref.get_text()
                 except:
                     try:
                         # try to find a user-defined reference (e.g. SINV.)
-                        transaction_reference = transaction_soup.rmtinf.ustrd.get_text()
+                        transaction_reference = transaction.rmtinf.ustrd.get_text()
                     except:
                         try:
                             # try to find an end-to-end ID
-                            transaction_reference = transaction_soup.endtoendid.get_text() 
+                            transaction_reference = transaction.endtoendid.get_text() 
                         except:
                             try:
                                 # try to find an AddtlTxInf
-                                transaction_reference = transaction_soup.addtltxinf.get_text() 
+                                transaction_reference = transaction.addtltxinf.get_text() 
                             except:
                                 transaction_reference = unique_reference
 
@@ -422,15 +393,15 @@ def read_camt_transactions(transaction_entries, account):
             # transaction without TxDtls: occurs at CS when transaction is from a pain.001 instruction
             # get unique ID
             try:
-                unique_reference = entry_soup.acctsvcrref.get_text()
+                unique_reference = entry.acctsvcrref.get_text()
             except:
                 # fallback: use tx id
                 try:
-                    unique_reference = entry_soup.txid.get_text()
+                    unique_reference = entry.txid.get_text()
                 except:
                     # fallback to pmtinfid
                     try:
-                        unique_reference = entry_soup.pmtinfid.get_text()
+                        unique_reference = entry.pmtinfid.get_text()
                     except:
                         # fallback to hash
                         code = "{0}:{1}:{2}".format(date, entry_currency, entry_amount)
@@ -441,10 +412,10 @@ def read_camt_transactions(transaction_entries, account):
                 frappe.log_error("Transaction {0} is already imported in {1}.".format(unique_reference, match_payment_entry[0]['name']))
             else:
                 # --- find transaction type: paid or received: (DBIT: paid, CRDT: received)
-                credit_debit = entry_soup.cdtdbtind.get_text()
+                credit_debit = entry.cdtdbtind.get_text()
                 # find payment instruction ID
                 try:
-                    payment_instruction_id = entry_soup.pmtinfid.get_text()     # instruction ID, PMTINF-[payment proposal]-row
+                    payment_instruction_id = entry.pmtinfid.get_text()     # instruction ID, PMTINF-[payment proposal]-row
                     payment_instruction_fields = payment_instruction_id.split("-")
                     payment_instruction_row = int(payment_instruction_fields[-1]) + 1
                     payment_proposal_id = payment_instruction_fields[1]
