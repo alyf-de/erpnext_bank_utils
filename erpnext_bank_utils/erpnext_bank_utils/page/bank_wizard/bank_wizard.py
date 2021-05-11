@@ -119,7 +119,11 @@ def get_defaults(bank_account):
 
 @frappe.whitelist()
 def get_bank_accounts():
-    bank_accounts = frappe.get_list('Account', filters={'account_type': 'Bank', 'is_group': 0}, fields=['name'], order_by='account_number')
+    bank_accounts = frappe.get_list('Account', filters={
+        'account_type': 'Bank',
+        'is_group': 0,
+        'disabled': 0
+    }, fields=['name'], order_by='account_number')
     return [account.name for account in bank_accounts]
 
 
