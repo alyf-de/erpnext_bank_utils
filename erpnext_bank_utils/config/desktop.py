@@ -7,8 +7,8 @@ def get_data():
 		{
 			"module_name": "ERPNext Bank Utils",
 			"color": "grey",
-			"icon": "octicon octicon-file-directory",
+			"icon": "fa fa-university",
 			"type": "module",
-			"label": _("ERPNext Bank Utils")
+			"label": _("Bank Utils")
 		}
 	]
