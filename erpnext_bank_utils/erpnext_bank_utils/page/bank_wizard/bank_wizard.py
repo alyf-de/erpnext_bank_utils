@@ -95,8 +95,7 @@ def log(comment):
 def get_defaults(bank_account):
     company = frappe.get_value("Account", bank_account, "company")
     defaults = frappe.get_doc("Bank Utils Defaults", {"company": company})
-    default_payable_account, default_receivable_account = frappe.get_value('Company',
-        'ALYF GmbH',
+    default_payable_account, default_receivable_account = frappe.get_value('Company', company,
         [
             'default_payable_account',
             'default_receivable_account'
