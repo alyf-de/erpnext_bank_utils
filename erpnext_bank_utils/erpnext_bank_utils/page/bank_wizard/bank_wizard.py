@@ -76,11 +76,9 @@ def create_reference(payment_entry, sales_invoice):
     reference_entry.outstanding_amount = frappe.get_value("Sales Invoice", sales_invoice, "outstanding_amount")
     paid_amount = frappe.get_value("Payment Entry", payment_entry, "paid_amount")
 
-    if paid_amount > reference_entry.outstanding_amount:
-        reference_entry.allocated_amount = reference_entry.outstanding_amount
-    else:
-        reference_entry.allocated_amount = paid_amount
-
+    reference_entry.allocated_amount = min(
+        paid_amount, reference_entry.outstanding_amount
+    )
     reference_entry.insert()
 
 
